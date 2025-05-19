@@ -1,0 +1,114 @@
+import java.util.*;
+
+enum Color { RED, GREEN }
+
+class Tree {
+    int value;
+    Color color;
+    int depth;
+    List<Tree> children = new ArrayList<>();
+    
+    Tree(int value, Color color, int depth) {
+        this.value = value;
+        this.color = color;
+        this.depth = depth;
+    }
+    
+    void addChild(Tree child) {
+        children.add(child);
+    }
+
+    void accept(TreeVisitor visitor) {
+        visitor.visitNode(this);
+        for (Tree child : children) {
+            child.accept(visitor);
+        }
+    }
+}
+
+interface TreeVisitor {
+    void visitNode(Tree node);
+    int getResult();
+}
+
+class SumInLeavesVisitor implements TreeVisitor {
+    int sum = 0;
+    public void visitNode(Tree node) {
+        if (node.children.isEmpty()) sum += node.value;
+    }
+    public int getResult() { return sum; }
+}
+
+class ProductOfRedNodesVisitor implements TreeVisitor {
+    long product = 1;
+    final int MOD = 1000000007;
+    public void visitNode(Tree node) {
+        if (node.color == Color.RED) product = (product * node.value) % MOD;
+    }
+    public int getResult() { return (int) product; }
+}
+
+class FancyVisitor implements TreeVisitor {
+    int evenDepthNonLeafSum = 0, greenLeafSum = 0;
+    public void visitNode(Tree node) {
+        if (node.depth % 2 == 0 && !node.children.isEmpty()) {
+            evenDepthNonLeafSum += node.value;
+        } else if (node.children.isEmpty() && node.color == Color.GREEN) {
+            greenLeafSum += node.value;
+        }
+    }
+    public int getResult() { return Math.abs(evenDepthNonLeafSum - greenLeafSum); }
+}
+
+public class Solution {
+    static Tree buildTree(int[] values, int[] colors, List<int[]> edges) {
+        int n = values.length;
+        Tree[] nodes = new Tree[n];
+        for (int i = 0; i < n; i++) {
+            nodes[i] = new Tree(values[i], colors[i] == 0 ? Color.RED : Color.GREEN, -1);
+        }
+        Map<Integer, List<Integer>> treeMap = new HashMap<>();
+        for (int[] edge : edges) {
+            treeMap.computeIfAbsent(edge[0] - 1, k -> new ArrayList<>()).add(edge[1] - 1);
+            treeMap.computeIfAbsent(edge[1] - 1, k -> new ArrayList<>()).add(edge[0] - 1);
+        }
+        buildTreeDFS(nodes, treeMap, 0, -1, 0);
+        return nodes[0];
+    }
+
+    static void buildTreeDFS(Tree[] nodes, Map<Integer, List<Integer>> treeMap, int current, int parent, int depth) {
+        nodes[current].depth = depth;
+        for (int child : treeMap.getOrDefault(current, new ArrayList<>())) {
+            if (child != parent) {
+                nodes[current].addChild(nodes[child]);
+                buildTreeDFS(nodes, treeMap, child, current, depth + 1);
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int n = sc.nextInt();
+        int[] values = new int[n];
+        int[] colors = new int[n];
+        for (int i = 0; i < n; i++) values[i] = sc.nextInt();
+        for (int i = 0; i < n; i++) colors[i] = sc.nextInt();
+        List<int[]> edges = new ArrayList<>();
+        for (int i = 0; i < n - 1; i++) {
+            edges.add(new int[]{sc.nextInt(), sc.nextInt()});
+        }
+        Tree root = buildTree(values, colors, edges);
+
+        TreeVisitor v1 = new SumInLeavesVisitor();
+        TreeVisitor v2 = new ProductOfRedNodesVisitor();
+        TreeVisitor v3 = new FancyVisitor();
+
+        root.accept(v1);
+        root.accept(v2);
+        root.accept(v3);
+
+        System.out.println(v1.getResult());
+        System.out.println(v2.getResult());
+        System.out.println(v3.getResult());
+    }
+}
